@@ -53,6 +53,11 @@ public class ChartItemBuilder<B extends ChartItemBuilder<B>> {
         return (B)this;
     }
 
+    public final B unit(final String UNIT) {
+        properties.put("unit", new SimpleStringProperty(UNIT));
+        return (B)this;
+    }
+
     public final B value(final double VALUE) {
         properties.put("value", new SimpleDoubleProperty(VALUE));
         return (B)this;
@@ -68,8 +73,8 @@ public class ChartItemBuilder<B extends ChartItemBuilder<B>> {
         return (B)this;
     }
 
-    public final B textColor(final Color COLOR) {
-        properties.put("textColor", new SimpleObjectProperty(COLOR));
+    public final B textFill(final Color COLOR) {
+        properties.put("textFill", new SimpleObjectProperty(COLOR));
         return (B)this;
     }
 
@@ -93,6 +98,16 @@ public class ChartItemBuilder<B extends ChartItemBuilder<B>> {
         return (B)this;
     }
 
+    public final B x(final double X) {
+        properties.put("x", new SimpleDoubleProperty(X));
+        return (B)this;
+    }
+
+    public final B y(final double Y) {
+        properties.put("y", new SimpleDoubleProperty(Y));
+        return (B)this;
+    }
+
     public final B animationDuration(final long DURATION) {
         properties.put("animationDuration", new SimpleLongProperty(DURATION));
         return (B)this;
@@ -105,12 +120,14 @@ public class ChartItemBuilder<B extends ChartItemBuilder<B>> {
                 ITEM.setName(((StringProperty) properties.get(key)).get());
             } else if ("value".equals(key)) {
                 ITEM.setValue(((DoubleProperty) properties.get(key)).get());
+            } else if ("unit".equals(key)) {
+                ITEM.setUnit(((StringProperty) properties.get(key)).get());
             } else if("fill".equals(key)) {
                 ITEM.setFill(((ObjectProperty<Color>) properties.get(key)).get());
             } else if("stroke".equals(key)) {
                 ITEM.setStroke(((ObjectProperty<Color>) properties.get(key)).get());
-            } else if("textColor".equals(key)) {
-                ITEM.setTextColor(((ObjectProperty<Color>) properties.get(key)).get());
+            } else if("textFill".equals(key)) {
+                ITEM.setTextFill(((ObjectProperty<Color>) properties.get(key)).get());
             } else if("timestamp".equals(key)) {
                 ITEM.setTimestamp(((ObjectProperty<Instant>) properties.get(key)).get());
             } else if ("timestampDateTime".equals(key)) {
@@ -121,6 +138,10 @@ public class ChartItemBuilder<B extends ChartItemBuilder<B>> {
                 ITEM.setAnimated(((BooleanProperty) properties.get(key)).get());
             } else if("animationDuration".equals(key)) {
                 ITEM.setAnimationDuration(((LongProperty) properties.get(key)).get());
+            } else if ("x".equals(key)) {
+                ITEM.setX(((DoubleProperty) properties.get(key)).get());
+            } else if ("y".equals(key)) {
+                ITEM.setY(((DoubleProperty) properties.get(key)).get());
             }
         }
         return ITEM;

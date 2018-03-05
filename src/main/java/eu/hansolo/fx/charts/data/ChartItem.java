@@ -34,14 +34,11 @@ import javafx.beans.property.ObjectPropertyBase;
 import javafx.beans.property.StringProperty;
 import javafx.beans.property.StringPropertyBase;
 import javafx.scene.paint.Color;
-import javafx.scene.paint.Color;
 import javafx.util.Duration;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -53,6 +50,8 @@ public class ChartItem implements Item, Comparable<ChartItem> {
     private       List<ItemEventListener> listenerList   = new CopyOnWriteArrayList<>();
     private       String                  _name;
     private       StringProperty          name;
+    private       String                  _unit;
+    private       StringProperty          unit;
     private       double                  _value;
     private       DoubleProperty          value;
     private       double                  oldValue;
@@ -60,14 +59,18 @@ public class ChartItem implements Item, Comparable<ChartItem> {
     private       ObjectProperty<Color>   fill;
     private       Color                   _stroke;
     private       ObjectProperty<Color>   stroke;
-    private       Color                   _textColor;
-    private       ObjectProperty<Color>   textColor;
+    private       Color                   _textFill;
+    private       ObjectProperty<Color>   textFill;
     private       Instant                 _timestamp;
     private       ObjectProperty<Instant> timestamp;
     private       Symbol                  _symbol;
     private       ObjectProperty<Symbol>  symbol;
     private       boolean                 _animated;
     private       BooleanProperty         animated;
+    private       double                  _x;
+    private       DoubleProperty          x;
+    private       double                  _y;
+    private       DoubleProperty          y;
     private       long                    animationDuration;
     private       DoubleProperty          currentValue;
     private       Timeline                timeline;
@@ -101,35 +104,38 @@ public class ChartItem implements Item, Comparable<ChartItem> {
     public ChartItem(final String NAME, final double VALUE, final Color FILL) {
         this(NAME, VALUE, FILL, Color.TRANSPARENT, Color.BLACK, Instant.now(), false, 800);
     }
-    public ChartItem(final String NAME, final double VALUE, final Color FILL, final Color TEXT_COLOR) {
-        this(NAME, VALUE, FILL, Color.TRANSPARENT, TEXT_COLOR, Instant.now(), false, 800);
+    public ChartItem(final String NAME, final double VALUE, final Color FILL, final Color TEXT_FILL) {
+        this(NAME, VALUE, FILL, Color.TRANSPARENT, TEXT_FILL, Instant.now(), false, 800);
     }
     public ChartItem(final String NAME, final double VALUE, final Color FILL, final Instant TIMESTAMP) {
         this(NAME, VALUE, FILL, Color.TRANSPARENT, Color.BLACK, TIMESTAMP, false, 800);
     }
-    public ChartItem(final String NAME, final double VALUE, final Color FILL, final Color TEXT_COLOR, final Instant TIMESTAMP) {
-        this(NAME, VALUE, FILL, Color.TRANSPARENT, TEXT_COLOR, TIMESTAMP, false, 800);
+    public ChartItem(final String NAME, final double VALUE, final Color FILL, final Color TEXT_FILL, final Instant TIMESTAMP) {
+        this(NAME, VALUE, FILL, Color.TRANSPARENT, TEXT_FILL, TIMESTAMP, false, 800);
     }
     public ChartItem(final String NAME, final double VALUE, final Color FILL, final Instant TIMESTAMP, final boolean ANIMATED, final long ANIMATION_DURATION) {
         this(NAME, VALUE, FILL, Color.TRANSPARENT, Color.BLACK, TIMESTAMP, ANIMATED, ANIMATION_DURATION);
     }
-    public ChartItem(final String NAME, final double VALUE, final Color FILL, final Color TEXT_COLOR, final Instant TIMESTAMP, final boolean ANIMATED, final long ANIMATION_DURATION) {
-        this(NAME, VALUE, FILL, Color.TRANSPARENT, TEXT_COLOR, TIMESTAMP, ANIMATED, ANIMATION_DURATION);
+    public ChartItem(final String NAME, final double VALUE, final Color FILL, final Color TEXT_FILL, final Instant TIMESTAMP, final boolean ANIMATED, final long ANIMATION_DURATION) {
+        this(NAME, VALUE, FILL, Color.TRANSPARENT, TEXT_FILL, TIMESTAMP, ANIMATED, ANIMATION_DURATION);
     }
-    public ChartItem(final String NAME, final double VALUE, final Color FILL, final Color STROKE, final Color TEXT_COLOR, final Instant TIMESTAMP, final boolean ANIMATED, final long ANIMATION_DURATION) {
+    public ChartItem(final String NAME, final double VALUE, final Color FILL, final Color STROKE, final Color TEXT_FILL, final Instant TIMESTAMP, final boolean ANIMATED, final long ANIMATION_DURATION) {
         _name             = NAME;
+        _unit             = "";
         _value            = VALUE;
         oldValue          = 0;
         _fill             = FILL;
         _stroke           = STROKE;
-        _textColor        = TEXT_COLOR;
+        _textFill         = TEXT_FILL;
         _timestamp        = TIMESTAMP;
         _symbol           = Symbol.NONE;
         _animated         = ANIMATED;
+        _x                = 0;
+        _y                = 0;
         currentValue      = new DoublePropertyBase(_value) {
             @Override protected void invalidated() {
-                oldValue = getValue();
-                setValue(get());
+                oldValue = ChartItem.this.getValue();
+                ChartItem.this.setValue(get());
                 fireItemEvent(UPDATE_EVENT);
             }
             @Override public Object getBean() { return ChartItem.this; }
@@ -164,19 +170,47 @@ public class ChartItem implements Item, Comparable<ChartItem> {
         return name;
     }
 
+    public String getUnit() { return null == unit ? _unit : unit.get(); }
+    public void setUnit(final String UNIT) {
+        if (null == unit) {
+            _unit = UNIT;
+            fireItemEvent(UPDATE_EVENT);
+        } else {
+            unit.set(UNIT);
+        }
+    }
+    public StringProperty unitProperty() {
+        if (null == unit) {
+            unit = new StringPropertyBase(_unit) {
+                @Override protected void invalidated() { fireItemEvent(UPDATE_EVENT); }
+                @Override public Object getBean() { return ChartItem.this; }
+                @Override public String getName() { return "unit"; }
+            };
+            _unit = null;
+        }
+        return unit;
+    }
+
     public double getValue() { return null == value ? _value : value.get(); }
     public void setValue(final double VALUE) {
         if (null == value) {
             if (isAnimated()) {
-                oldValue = _value;
-                _value   = VALUE;
-                timeline.stop();
-                KeyValue kv1 = new KeyValue(currentValue, oldValue, Interpolator.EASE_BOTH);
-                KeyValue kv2 = new KeyValue(currentValue, VALUE, Interpolator.EASE_BOTH);
-                KeyFrame kf1 = new KeyFrame(Duration.ZERO, kv1);
-                KeyFrame kf2 = new KeyFrame(Duration.millis(animationDuration), kv2);
-                timeline.getKeyFrames().setAll(kf1, kf2);
-                timeline.play();
+                if (timeline.getCurrentRate() > 0) {
+                    // Only update values if timeline is already running
+                    oldValue = _value;
+                    _value   = VALUE;
+                } else {
+                    // Start timeline only if it is NOT already running
+                    oldValue = _value;
+                    _value = VALUE;
+                    timeline.stop();
+                    KeyValue kv1 = new KeyValue(currentValue, oldValue, Interpolator.EASE_BOTH);
+                    KeyValue kv2 = new KeyValue(currentValue, VALUE, Interpolator.EASE_BOTH);
+                    KeyFrame kf1 = new KeyFrame(Duration.ZERO, kv1);
+                    KeyFrame kf2 = new KeyFrame(Duration.millis(animationDuration), kv2);
+                    timeline.getKeyFrames().setAll(kf1, kf2);
+                    timeline.play();
+                }
             } else {
                 oldValue = _value;
                 _value = VALUE;
@@ -195,13 +229,16 @@ public class ChartItem implements Item, Comparable<ChartItem> {
                 }
                 @Override protected void invalidated() {
                     if (isAnimated()) {
-                        timeline.stop();
-                        KeyValue kv1 = new KeyValue(currentValue, getOldValue(), Interpolator.EASE_BOTH);
-                        KeyValue kv2 = new KeyValue(currentValue, get(), Interpolator.EASE_BOTH);
-                        KeyFrame kf1 = new KeyFrame(Duration.ZERO, kv1);
-                        KeyFrame kf2 = new KeyFrame(Duration.millis(animationDuration), kv2);
-                        timeline.getKeyFrames().setAll(kf1, kf2);
-                        timeline.play();
+                        if (Double.compare(timeline.getCurrentRate(), 0.0) == 0) {
+                            // Only start timeline if it is NOT already running
+                            timeline.stop();
+                            KeyValue kv1 = new KeyValue(currentValue, oldValue, Interpolator.EASE_BOTH);
+                            KeyValue kv2 = new KeyValue(currentValue, get(), Interpolator.EASE_BOTH);
+                            KeyFrame kf1 = new KeyFrame(Duration.ZERO, kv1);
+                            KeyFrame kf2 = new KeyFrame(Duration.millis(animationDuration), kv2);
+                            timeline.getKeyFrames().setAll(kf1, kf2);
+                            timeline.play();
+                        }
                     } else {
                         fireItemEvent(FINISHED_EVENT);
                     }
@@ -257,25 +294,25 @@ public class ChartItem implements Item, Comparable<ChartItem> {
         return stroke;
     }
 
-    public Color getTextColor() { return null == textColor ? _textColor : textColor.get(); }
-    public void setTextColor(final Color COLOR) {
-        if (null == textColor) {
-            _textColor = COLOR;
+    public Color getTextFill() { return null == textFill ? _textFill : textFill.get(); }
+    public void setTextFill(final Color COLOR) {
+        if (null == textFill) {
+            _textFill = COLOR;
             fireItemEvent(UPDATE_EVENT);
         } else {
-            textColor.set(COLOR);
+            textFill.set(COLOR);
         }
     }
-    public ObjectProperty<Color> textColorProperty() {
-        if (null == textColor) {
-            textColor = new ObjectPropertyBase<Color>(_textColor) {
+    public ObjectProperty<Color> textFillProperty() {
+        if (null == textFill) {
+            textFill = new ObjectPropertyBase<Color>(_textFill) {
                 @Override protected void invalidated() { fireItemEvent(UPDATE_EVENT); }
                 @Override public Object getBean() { return ChartItem.this; }
-                @Override public String getName() { return "textColor"; }
+                @Override public String getName() { return "textFill"; }
             };
-            _textColor = null;
+            _textFill = null;
         }
-        return textColor;
+        return textFill;
     }
 
     @Override public Symbol getSymbol() { return null == symbol ? _symbol : symbol.get(); }
@@ -345,6 +382,44 @@ public class ChartItem implements Item, Comparable<ChartItem> {
         return animated;
     }
 
+    public double getX() { return null == x ? _x : x.get(); }
+    public void setX(final double X) {
+        if (null == x) {
+            _x = X;
+        } else {
+            x.set(X);
+        }
+    }
+    public DoubleProperty xProperty() {
+        if (null == x) {
+            x = new DoublePropertyBase(_x) {
+                @Override protected void invalidated() { }
+                @Override public Object getBean() { return ChartItem.this; }
+                @Override public String getName() { return "x"; }
+            };
+        }
+        return x;
+    }
+
+    public double getY() { return null == y ? _y : y.get(); }
+    public void setY(final double Y) {
+        if (null == y) {
+            _y = Y;
+        } else {
+            y.set(Y);
+        }
+    }
+    public DoubleProperty yProperty() {
+        if (null == y) {
+            y = new DoublePropertyBase(_y) {
+                @Override protected void invalidated() { }
+                @Override public Object getBean() { return ChartItem.this; }
+                @Override public String getName() { return "y"; }
+            };
+        }
+        return y;
+    }
+    
     public long getAnimationDuration() { return animationDuration; }
     public void setAnimationDuration(final long DURATION) { animationDuration = Helper.clamp(10, 10000, DURATION); }
 

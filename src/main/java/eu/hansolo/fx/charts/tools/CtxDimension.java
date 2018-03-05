@@ -106,6 +106,9 @@ public class CtxDimension {
     public double getOldHeight() { return oldHeight; }
     public double getHeight() { return height; }
 
+    public double getCenterX() { return minX + getWidth() * 0.5; }
+    public double getCenterY() { return minY + getHeight() * 0.5; }
+
     public void set(final CtxDimension DIM) {
         setMinX(DIM.getMinX());
         setMinY(DIM.getMinY());
@@ -119,8 +122,12 @@ public class CtxDimension {
         setMaxY(MAX_Y);
     }
 
-    public double getCenterX() { return minX + getWidth() * 0.5; }
-    public double getCenterY() { return minY + getHeight() * 0.5; }
+    public boolean contains(final double X, final double Y) {
+        return (Double.compare(X, getMinX()) >= 0 &&
+                Double.compare(X, getMaxX()) <= 0 &&
+                Double.compare(Y, getMinY()) >= 0 &&
+                Double.compare(Y, getMaxY()) <= 0);
+    }
 
     @Override public String toString() {
         return new StringBuilder().append("{\n")
